@@ -56,6 +56,41 @@ impl Todo {
     }
 }
 
+type TodoDatas = HashMap<i32, Todo>;
+
+#[derive(Debug, Clone)]
+pub struct TodoRepositoryForMemory {
+    store: Arc<RwLock<TodoDatas>>,
+}
+
+impl TodoRepositoryForMemory {
+    pub fn new() -> Self {
+        TodoRepositoryForMemory {
+            store: Arc::default(),
+        }
+    }
+}
+
+impl TodoRepository for TodoRepositoryForMemory {
+    fn create(&self, payload: CreateTodo) -> Todo {
+        todo!()
+    }
+    fn find(&self, id: i32) -> Option<Todo> {
+        todo!()
+    }
+    fn all(&self) -> Vec<Todo> {
+        todo!();
+    }
+
+    fn update(&self, id: i32, payload: UpdateTodo) -> anyhow::Result<Todo> {
+        todo!()
+    }
+
+    fn delete(&self, id: i32) -> anyhow::Result<()> {
+        todo!()
+    }
+}
+
 #[tokio::main]
 async fn main() {
     let log_level = env::var("RUST_LOG").unwrap_or("info".to_string());
