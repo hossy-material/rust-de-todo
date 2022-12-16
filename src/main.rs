@@ -33,7 +33,7 @@ fn create_app<T: TodoRepository>(repository: T) -> Router {
         .route("/", get(root))
         .route("/todos", post(create_todo::<T>).get(all_todo::<T>))
         .route(
-            "todos/:id",
+            "/todos/:id",
             get(find_todo::<T>)
                 .delete(delete_todo::<T>)
                 .patch(update_todo::<T>),
@@ -141,7 +141,12 @@ mod test {
         let req = build_todo_req_with_json(
             "/todos/1",
             Method::PATCH,
-            r#"{ "id": 1, "text": "should_update_todo", "completed": false}"#.to_string(),
+            r#"{
+                "id": 1, 
+                "text": "should_update_todo",
+                "completed": false
+            }"#
+            .to_string(),
         );
         let res = create_app(repository).oneshot(req).await.unwrap();
         let todo = res_to_todo(res).await;
