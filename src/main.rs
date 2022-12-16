@@ -91,4 +91,18 @@ mod test {
 
         assert_eq!(body, "Hello, World!");
     }
+
+    #[tokio::test]
+    async fn should_created_todo() {
+        let expected = Todo::new(1, "should_return_created_todo".to_string());
+        let repository = TodoRepositoryForMemory::new();
+        let req = build_todo_req_with_json(
+            "/todos",
+            Method::POST,
+            r#"{ "text": "should_return_created_todo" }"#.to_string(),
+        );
+        let res = create_app(repository).oneshot(req).await.unwrap();
+        let todo = res_to_todo(res).await;
+        assert_eq!(expected, todo);
+    }
 }
