@@ -139,6 +139,7 @@ delete from todos where id=$1
 }
 
 #[cfg(test)]
+#[cfg(feature = "database-test")]
 mod test {
     use super::*;
     use dotenv::dotenv;
