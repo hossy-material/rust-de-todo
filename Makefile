@@ -9,3 +9,8 @@ dev:
 
 test:
 	cargo test
+
+dev:
+	sqlx db create
+	sqlx migrate run
+	cargo watch -x run
