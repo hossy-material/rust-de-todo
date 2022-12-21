@@ -51,7 +51,7 @@ fn create_app<T: TodoRepository>(repository: T) -> Router {
         .layer(Extension(Arc::new(repository)))
         .layer(
             CorsLayer::new()
-                .allow_origin(Origin::exact("http://127.0.0.1:5173".parse().unwrap()))
+                .allow_origin(Origin::exact("http://127.0.0.1:3001".parse().unwrap()))
                 .allow_methods(Any)
                 .allow_headers(vec![CONTENT_TYPE]),
         )
