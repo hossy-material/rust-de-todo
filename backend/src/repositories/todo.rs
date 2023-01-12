@@ -224,6 +224,8 @@ returning *
     }
 
     async fn delete(&self, id: i32) -> anyhow::Result<()> {
+        let tx = self.pool.begin().await?;
+
         sqlx::query(
             r#"
 delete from todos where id=$1
@@ -236,6 +238,21 @@ delete from todos where id=$1
             sqlx::Error::RowNotFound => RepositoryError::NotFound(id),
             _ => RepositoryError::Unexpected(e.to_string()),
         })?;
+
+        sqlx::query(
+            r#"
+            delete from todos where id=$1
+            "#,
+        )
+        .bind(id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => RepositoryError::NotFound(id),
+            _ => RepositoryError::Unexpected(e.to_string()),
+        })?;
+
+        tx.commit().await?;
 
         Ok(())
     }
@@ -396,6 +413,17 @@ select * from todos where id=$1"#,
         .await
         .expect("[delete] todo_labels fetch error");
         assert!(todo_rows.len() == 0);
+
+        let rows = sqlx::query(
+            r#"
+            select * from todo_labels where todo_id=$1
+            "#,
+        )
+        .bind(todo.id)
+        .fetch_all(&pool)
+        .await
+        .expect("[delete] todo_labels fetch error");
+        assert!(rows.len() == 0);
     }
 }
 
