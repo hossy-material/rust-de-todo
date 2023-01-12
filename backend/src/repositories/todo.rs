@@ -94,6 +94,7 @@ pub struct UpdateTodo {
     #[validate(length(max = 100, message = "Over text length"))]
     text: Option<String>,
     completed: Option<bool>,
+    labels: Option<Vec<i32>>,
 }
 
 #[derive(Debug, Clone)]
@@ -177,8 +178,10 @@ order by id desc;
     }
 
     async fn update(&self, id: i32, payload: UpdateTodo) -> anyhow::Result<TodoEntity> {
+        let tx = self.pool.begin().await?;
+
         let old_todo = self.find(id).await?;
-        let todo = sqlx::query_as::<_, TodoWithLabelFromRow>(
+        sqlx::query(
             r#"
 update todos set text=$1, completed=$2
 where id=$3
@@ -191,7 +194,33 @@ returning *
         .fetch_one(&self.pool)
         .await?;
 
-        Ok(fold_entity(todo))
+        if let Some(labels) = payload.labels {
+            sqlx::query(
+                r#"
+                delete from todo_labels where todo_id=$1
+                "#,
+            )
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+
+            sqlx::query(
+                r#"
+                insert into todo_labels (todo_id, label_id)
+                select $1, id
+                from unnest($2) as t(id);
+                "#,
+            )
+            .bind(id)
+            .bind(labels)
+            .execute(&self.pool)
+            .await?;
+        }
+
+        tx.commit().await?;
+        let todo = self.find(id).await?;
+
+        Ok(todo)
     }
 
     async fn delete(&self, id: i32) -> anyhow::Result<()> {
@@ -341,12 +370,14 @@ returning *
                 UpdateTodo {
                     text: Some(updated_text.to_string()),
                     completed: Some(true),
+                    labels: Some(vec![]),
                 },
             )
             .await
             .expect("[update] returned Err");
         assert_eq!(created.id, todo.id);
         assert_eq!(todo.text, updated_text);
+        assert!(todo.labels.len() == 0);
 
         // delete
         let _ = repository
@@ -499,6 +530,7 @@ pub mod test_utils {
                     UpdateTodo {
                         text: Some(text.clone()),
                         completed: Some(true),
+                        labels: Some(vec![]),
                     },
                 )
                 .await
