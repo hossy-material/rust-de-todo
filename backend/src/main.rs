@@ -10,16 +10,17 @@ use axum::{
     routing::{delete, get, post},
     Router,
 };
-use dotenv::dotenv;
 use handlers::{
     label::{all_label, create_label, delete_label},
     todo::{all_todo, create_todo, delete_todo, find_todo, update_todo},
 };
-use hyper::header::CONTENT_TYPE;
 use repositories::label::LabelRepository;
-use sqlx::PgPool;
 use std::net::SocketAddr;
 use std::{env, sync::Arc};
+
+use dotenv::dotenv;
+use hyper::header::CONTENT_TYPE;
+use sqlx::PgPool;
 use tower_http::cors::{Any, CorsLayer, Origin};
 
 #[tokio::main]
@@ -38,9 +39,8 @@ async fn main() {
         TodoRepositoryForDb::new(pool.clone()),
         LabelRepositoryForDb::new(pool.clone()),
     );
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     tracing::debug!("listening on {}", addr);
-
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
         .await
@@ -85,7 +85,7 @@ mod test {
     use crate::repositories::label::test_utils::LabelRepositoryForMemory;
     use crate::repositories::label::Label;
     use crate::repositories::todo::test_utils::TodoRepositoryForMemory;
-    use crate::repositories::todo::{CreateTodo, TodoEntity, TodoWithLabelFromRow};
+    use crate::repositories::todo::{CreateTodo, TodoEntity};
     use axum::http::StatusCode;
     use axum::response::Response;
     use axum::{
@@ -111,9 +111,17 @@ mod test {
             .unwrap()
     }
 
+    async fn res_to_todo(res: Response) -> TodoEntity {
+        let bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let body: String = String::from_utf8(bytes.to_vec()).unwrap();
+        let todo: TodoEntity = serde_json::from_str(&body)
+            .expect(&format!("cannot convert Todo instance. body: {}", body));
+        todo
+    }
+
     async fn res_to_label(res: Response) -> Label {
         let bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
-        let body = String::from_utf8(bytes.to_vec()).unwrap();
+        let body: String = String::from_utf8(bytes.to_vec()).unwrap();
         let label: Label = serde_json::from_str(&body)
             .expect(&format!("cannot convert Label instance. body: {}", body));
         label
@@ -130,14 +138,6 @@ mod test {
         )
     }
 
-    async fn res_to_todo(res: Response) -> TodoEntity {
-        let bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
-        let body: String = String::from_utf8(bytes.to_vec()).unwrap();
-        let todo: TodoEntity = serde_json::from_str(&body)
-            .expect(&format!("cannot convert Todo instance. body:{}", body));
-        todo
-    }
-
     #[tokio::test]
     async fn should_created_todo() {
         let (labels, _label_ids) = label_fixture();
@@ -146,7 +146,7 @@ mod test {
         let req = build_req_with_json(
             "/todos",
             Method::POST,
-            r#"{ "text": "should_return_created_todo, "labels": [999] }"#.to_string(),
+            r#"{ "text": "should_return_created_todo", "labels": [999] }"#.to_string(),
         );
         let res = create_app(
             TodoRepositoryForMemory::new(labels),
@@ -198,7 +198,6 @@ mod test {
         let body: String = String::from_utf8(bytes.to_vec()).unwrap();
         let todos: Vec<TodoEntity> = serde_json::from_str(&body)
             .expect(&format!("cannot convert Todo lis instance. body: {}", body));
-
         assert_eq!(vec![expected], todos);
     }
 
@@ -215,10 +214,9 @@ mod test {
             "/todos/1",
             Method::PATCH,
             r#"{
-                "id": 1, 
-                "text": "should_update_todo",
-                "completed": false
-            }"#
+    "text": "should_update_todo",
+    "completed": false
+}"#
             .to_string(),
         );
         let res = create_app(todo_repository, LabelRepositoryForMemory::new())

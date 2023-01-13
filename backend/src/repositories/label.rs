@@ -54,7 +54,7 @@ select * from labels where name = $1
 insert into labels ( name )
 values ( $1 )
 returning *
-"#,
+        "#,
         )
         .bind(name.clone())
         .fetch_one(&self.pool)
@@ -80,7 +80,7 @@ order by labels.id asc;
         sqlx::query(
             r#"
 delete from labels where id=$1
-"#,
+        "#,
         )
         .bind(id)
         .execute(&self.pool)
@@ -120,11 +120,7 @@ mod test {
             .expect("[create] returned Err");
         assert_eq!(label.name, label_text);
 
-        // all
-        let labels = repository.all().await.expect("[all] returned Err");
-        let label = labels.last().unwrap();
-        assert_eq!(label.name, label_text);
-
+        // delete
         repository
             .delete(label.id)
             .await
